@@ -53,6 +53,9 @@ const LandRentalView  = dynamic(() => import("@/components/views/land-rental-vie
 // Documents Module
 const DocumentsView   = dynamic(() => import("@/components/views/documents-view"),          { loading: () => <SectionSkeleton />, ssr: false })
 
+// HSE Module
+const HseView         = dynamic(() => import("@/components/views/hse-view"),                { loading: () => <SectionSkeleton />, ssr: false })
+
 function SectionView({ section }: { section: string }) {
   switch (section) {
     case "dashboard":         return <DashboardView />
@@ -72,6 +75,7 @@ function SectionView({ section }: { section: string }) {
     case "land-rental":       return <LandRentalView />
     case "food":              return <FoodView />
     case "documents":         return <DocumentsView />
+    case "hse":               return <HseView />
     case "settings":          return <PlaceholderView title="Configuration" description="System preferences and administrative settings" icon={Settings2} />
     default:                  return <DashboardView />
   }

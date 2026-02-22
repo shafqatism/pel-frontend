@@ -11,6 +11,7 @@ import {
   FileText,
   Settings2,
   Landmark,
+  ShieldAlert,
 } from "lucide-react"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -81,6 +82,12 @@ const navItems = [
     title: "Documents",
     sectionId: "documents" as const,
     icon: FileText,
+    items: [],
+  },
+  {
+    title: "HSE & Safety",
+    sectionId: "hse" as const,
+    icon: ShieldAlert,
     items: [],
   },
   {
