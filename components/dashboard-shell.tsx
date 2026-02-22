@@ -41,6 +41,9 @@ const AttendanceView = dynamic(() => import("@/components/views/hr/attendance-vi
 // Finance Module
 const ExpensesView   = dynamic(() => import("@/components/views/finance/expenses-view"),    { loading: () => <SectionSkeleton />, ssr: false })
 
+// Food Module
+const FoodView      = dynamic(() => import("@/components/views/food-view"),              { loading: () => <SectionSkeleton />, ssr: false })
+
 function SectionView({ section }: { section: string }) {
   switch (section) {
     case "dashboard":         return <DashboardView />
@@ -57,7 +60,7 @@ function SectionView({ section }: { section: string }) {
     case "finance-expenses":  return <ExpensesView />
     // Other modules (Placeholders)
     case "sites":             return <PlaceholderView title="Project Sites" description="Field operations and site management" icon={MapPin} />
-    case "food":              return <PlaceholderView title="Food & Mess" description="Catering and mess management records" icon={UtensilsCrossed} />
+    case "food":              return <FoodView />
     case "documents":         return <PlaceholderView title="Document Storage" description="Internal records and document management" icon={FileText} />
     case "settings":          return <PlaceholderView title="Configuration" description="System preferences and administrative settings" icon={Settings2} />
     default:                  return <DashboardView />
