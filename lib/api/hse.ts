@@ -21,4 +21,6 @@ export const hseApi = {
     create: (dto: CreateDrillDto) =>
       api.post<HseDrill>("/hse/drills", dto).then(r => r.data),
   },
+  stats: () =>
+    api.get<{ severityCount: Record<string, number>, statusCount: Record<string, number>, avgAuditScore: number }>("/hse/stats").then(r => r.data),
 }

@@ -26,6 +26,9 @@ export const fleetApi = {
     compliance: () =>
       api.get<Vehicle[]>("/fleet/vehicles/compliance").then(r => r.data),
 
+    maintenancePredictions: () =>
+      api.get<any[]>("/fleet/vehicles/maintenance-predictions").then(r => r.data),
+
     create: (dto: CreateVehicleDto) =>
       api.post<Vehicle>("/fleet/vehicles", dto).then(r => r.data),
 
