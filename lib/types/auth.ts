@@ -7,5 +7,5 @@ export interface User {
 
 export interface AuthResponse {
   user: User
-  accessToken: string
+  access_token: string
 }

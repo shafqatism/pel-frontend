@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Truck, Lock, Mail, Loader2 } from "lucide-react"
+import { Truck, Lock, Mail, Loader2, User, ChevronRight } from "lucide-react"
 
 export default function LoginPage() {
   const { login } = useAuth()
+  const [isRegister, setIsRegister] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [fullName, setFullName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,10 +24,15 @@ export default function LoginPage() {
     setError(null)
     
     try {
-      const response = await authApi.login({ email, password })
-      login(response.user, response.accessToken)
+      let response;
+      if (isRegister) {
+        response = await authApi.register({ email, password, fullName, role: "admin" })
+      } else {
+        response = await authApi.login({ email, password })
+      }
+      login(response.user, response.access_token)
     } catch (err: any) {
-      setError(err.response?.data?.message || "Invalid credentials. Please try again.")
+      setError(err.response?.data?.message || "Operation failed. Please check your credentials.")
     } finally {
       setIsLoading(false)
     }
@@ -47,13 +54,30 @@ export default function LoginPage() {
               PEL ERP <span className="text-amber-600">Portal</span>
             </CardTitle>
             <CardDescription className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
-              Petroleum Exploration Limited
+              {isRegister ? "Create Admin Account" : "Petroleum Exploration Limited"}
             </CardDescription>
           </div>
         </CardHeader>
         
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
+            {isRegister && (
+               <div className="space-y-2 animate-in slide-in-from-left-2">
+                 <Label htmlFor="name" className="text-sm font-bold text-foreground ml-1">Full Name</Label>
+                 <div className="relative group">
+                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-amber-600 transition-colors" />
+                   <Input 
+                     id="name" 
+                     placeholder="John Doe" 
+                     className="pl-11 h-12 rounded-xl border-border/60 bg-white/50 dark:bg-black/50" 
+                     value={fullName}
+                     onChange={(e) => setFullName(e.target.value)}
+                     required
+                   />
+                 </div>
+               </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-bold text-foreground ml-1">Work Email</Label>
               <div className="relative group">
@@ -73,9 +97,11 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between ml-1">
                 <Label htmlFor="password" className="text-sm font-bold text-foreground">Password</Label>
-                <button type="button" className="text-xs font-semibold text-amber-600 hover:text-amber-700 transition-colors">
-                  Forgot?
-                </button>
+                {!isRegister && (
+                  <button type="button" className="text-xs font-semibold text-amber-600 hover:text-amber-700 transition-colors">
+                    Forgot?
+                  </button>
+                )}
               </div>
               <div className="relative group">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-amber-600 transition-colors" />
@@ -92,7 +118,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs font-semibold animate-in slide-in-from-top-2">
+              <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 text-rose-600 text-xs font-semibold animate-in slide-in-from-top-2">
                 {error}
               </div>
             )}
@@ -105,26 +131,30 @@ export default function LoginPage() {
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                "Sign In to ERP"
+                isRegister ? "Create Account" : "Sign In to ERP"
               )}
             </Button>
           </form>
         </CardContent>
         
         <CardFooter className="pb-8 pt-4 border-t border-border/30 mt-4 flex flex-col gap-4">
-          <p className="text-xs text-center text-muted-foreground font-medium px-6 leading-relaxed">
-            By signing in, you agree to our Terms of Service and data protection policies for internal use.
-          </p>
-          <div className="flex gap-4 justify-center">
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-500/40"></div>
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-500/40"></div>
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-500/40"></div>
+          <div className="w-full">
+            <button 
+              onClick={() => setIsRegister(!isRegister)}
+              className="w-full py-2 text-xs font-bold text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1.5"
+            >
+              {isRegister ? "Already have an account?" : "Don't have an account yet?"} 
+              <span className="text-amber-600 flex items-center">{isRegister ? "Login here" : "Register here"} <ChevronRight className="w-3 h-3" /></span>
+            </button>
           </div>
+          <p className="text-[10px] text-center text-muted-foreground/60 font-bold uppercase tracking-widest px-6 leading-relaxed">
+            Exploration & Production Information Portal
+          </p>
         </CardFooter>
       </Card>
       
       <div className="fixed bottom-6 text-[10px] font-bold text-muted-foreground/40 uppercase tracking-[0.2em] pointer-events-none">
-        Property of Petroleum Exploration Limited
+        Petroleum Exploration Limited &copy; {new Date().getFullYear()}
       </div>
     </div>
   )
