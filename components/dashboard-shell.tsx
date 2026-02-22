@@ -6,77 +6,61 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   Truck, Users, DollarSign, MapPin,
   UtensilsCrossed, FileText, Settings2,
-  Fuel, Wrench, Navigation, ClipboardList, Calendar
+  Wrench, ClipboardList, Calendar,
 } from "lucide-react"
 import { PlaceholderView } from "@/components/views/placeholder-view"
 import { memo, Suspense } from "react"
 
-// Lazy-load the heavy dashboard view
-const DashboardView = dynamic(() => import("@/components/views/dashboard-view"), {
-  loading: () => <SectionSkeleton />,
-  ssr: false,
-})
-
 function SectionSkeleton() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <div className="space-y-2">
         <Skeleton className="h-7 w-48 rounded-lg" />
         <Skeleton className="h-4 w-72 rounded-md" />
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {Array(4).fill(0).map((_, i) => (
-          <Skeleton key={i} className="h-28 rounded-2xl" />
-        ))}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Skeleton className="col-span-2 h-64 rounded-2xl" />
-        <Skeleton className="h-64 rounded-2xl" />
-      </div>
+      <Skeleton className="h-96 rounded-2xl" />
     </div>
   )
 }
 
-// Map each section to its view
+// ─── Lazy-loaded views ─────────────────────────────────────────────────────────
+const DashboardView  = dynamic(() => import("@/components/views/dashboard-view"),          { loading: () => <SectionSkeleton />, ssr: false })
+const VehiclesView   = dynamic(() => import("@/components/views/fleet/vehicles-view"),     { loading: () => <SectionSkeleton />, ssr: false })
+const TripsView      = dynamic(() => import("@/components/views/fleet/trips-view"),        { loading: () => <SectionSkeleton />, ssr: false })
+const FuelView       = dynamic(() => import("@/components/views/fleet/fuel-view"),         { loading: () => <SectionSkeleton />, ssr: false })
+const MaintenanceView = dynamic(() => import("@/components/views/fleet/maintenance-view"), { loading: () => <SectionSkeleton />, ssr: false })
+const AssignmentsView = dynamic(() => import("@/components/views/fleet/assignments-view"), { loading: () => <SectionSkeleton />, ssr: false })
+
+// HR Module
+const EmployeesView  = dynamic(() => import("@/components/views/hr/employees-view"),       { loading: () => <SectionSkeleton />, ssr: false })
+const AttendanceView = dynamic(() => import("@/components/views/hr/attendance-view"),      { loading: () => <SectionSkeleton />, ssr: false })
+
+// Finance Module
+const ExpensesView   = dynamic(() => import("@/components/views/finance/expenses-view"),    { loading: () => <SectionSkeleton />, ssr: false })
+
 function SectionView({ section }: { section: string }) {
   switch (section) {
-    case "dashboard":
-      return <DashboardView />
-
+    case "dashboard":         return <DashboardView />
     // Fleet
-    case "fleet-vehicles":
-      return <PlaceholderView title="Vehicles" description="Fleet vehicle registry and management" icon={Truck} />
-    case "fleet-trips":
-      return <PlaceholderView title="Trip Logs" description="Track vehicle movements and operational records" icon={Navigation} />
-    case "fleet-fuel":
-      return <PlaceholderView title="Fuel Management" description="Monitor fuel consumption across the fleet" icon={Fuel} />
-    case "fleet-maintenance":
-      return <PlaceholderView title="Maintenance" description="Service, repair, and inspection records" icon={Wrench} />
-    case "fleet-assignments":
-      return <PlaceholderView title="Assignments" description="Vehicle-to-employee assignment tracking" icon={ClipboardList} />
-
+    case "fleet-vehicles":    return <VehiclesView />
+    case "fleet-trips":       return <TripsView />
+    case "fleet-fuel":        return <FuelView />
+    case "fleet-maintenance": return <MaintenanceView />
+    case "fleet-assignments": return <AssignmentsView />
     // HR
-    case "hr-employees":
-      return <PlaceholderView title="Employees" description="Employee directory and profile management" icon={Users} />
-    case "hr-attendance":
-      return <PlaceholderView title="Attendance" description="Daily attendance logs and reports" icon={Calendar} />
-
+    case "hr-employees":      return <EmployeesView />
+    case "hr-attendance":     return <AttendanceView />
     // Finance
-    case "finance-expenses":
-      return <PlaceholderView title="Expenses" description="Expense tracking and financial reporting" icon={DollarSign} />
-
-    // Other
-    case "sites":
-      return <PlaceholderView title="Project Sites" description="Field operations and site management" icon={MapPin} />
-    case "food":
-      return <PlaceholderView title="Food & Mess" description="Catering and mess management records" icon={UtensilsCrossed} />
-    case "documents":
-      return <PlaceholderView title="Documents" description="Document storage and management" icon={FileText} />
-    case "settings":
-      return <PlaceholderView title="Settings" description="System configuration and preferences" icon={Settings2} />
-
-    default:
-      return <DashboardView />
+    case "finance-expenses":  return <ExpensesView />
+    // Other modules (Placeholders)
+    case "sites":             return <PlaceholderView title="Project Sites" description="Field operations and site management" icon={MapPin} />
+    case "food":              return <PlaceholderView title="Food & Mess" description="Catering and mess management records" icon={UtensilsCrossed} />
+    case "documents":         return <PlaceholderView title="Document Storage" description="Internal records and document management" icon={FileText} />
+    case "settings":          return <PlaceholderView title="Configuration" description="System preferences and administrative settings" icon={Settings2} />
+    default:                  return <DashboardView />
   }
 }
 

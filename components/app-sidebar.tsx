@@ -84,11 +84,7 @@ const navItems = [
   },
 ]
 
-const user = {
-  name: "PEL Admin",
-  email: "admin@pelexploration.com",
-  avatar: "",
-}
+
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { setActive, setBreadcrumb } = useNav()
@@ -118,7 +114,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={navItems} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={user} />
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
