@@ -10,6 +10,7 @@ import {
   UtensilsCrossed,
   FileText,
   Settings2,
+  Landmark,
 } from "lucide-react"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -62,6 +63,12 @@ const navItems = [
     title: "Project Sites",
     sectionId: "sites" as const,
     icon: MapPin,
+    items: [],
+  },
+  {
+    title: "Land Rental",
+    sectionId: "land-rental" as const,
+    icon: Landmark,
     items: [],
   },
   {
