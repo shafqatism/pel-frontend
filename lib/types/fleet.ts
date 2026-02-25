@@ -71,6 +71,7 @@ export interface Trip {
   timeOut?: string
   timeIn?: string
   driverName?: string
+  alternativeDriverName?: string
   personTravelList?: string[]
   fuelAllottedLiters?: number
   fuelCostPkr?: number
@@ -89,6 +90,7 @@ export interface CreateTripDto {
   timeOut?: string
   timeIn?: string
   driverName?: string
+  alternativeDriverName?: string
   personTravelList?: string[]
   fuelAllottedLiters?: number
   fuelCostPkr?: number
@@ -173,6 +175,17 @@ export interface CreateAssignmentDto {
   assignmentDate: string
   returnDate?: string
   purpose?: string
+}
+
+export interface FleetSummaryRecord extends Vehicle {
+  totalKm: number
+  totalFuelCost: number
+  totalFuelLiters: number
+  totalMaintenanceCost: number
+  tripCount: number
+  fuelCount: number
+  maintenanceCount: number
+  assignmentCount: number
 }
 
 // ─── Paginated Response ───────────────────────────────────────────────────────

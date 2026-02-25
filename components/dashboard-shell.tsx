@@ -33,6 +33,7 @@ const TripsView      = dynamic(() => import("@/components/views/fleet/trips-view
 const FuelView       = dynamic(() => import("@/components/views/fleet/fuel-view"),         { loading: () => <SectionSkeleton />, ssr: false })
 const MaintenanceView = dynamic(() => import("@/components/views/fleet/maintenance-view"), { loading: () => <SectionSkeleton />, ssr: false })
 const AssignmentsView = dynamic(() => import("@/components/views/fleet/assignments-view"), { loading: () => <SectionSkeleton />, ssr: false })
+const FleetSummaryView = dynamic(() => import("@/components/views/fleet/fleet-summary-view"), { loading: () => <SectionSkeleton />, ssr: false })
 
 // HR Module
 const EmployeesView  = dynamic(() => import("@/components/views/hr/employees-view"),       { loading: () => <SectionSkeleton />, ssr: false })
@@ -57,6 +58,7 @@ const DocumentsView   = dynamic(() => import("@/components/views/documents-view"
 const HseView         = dynamic(() => import("@/components/views/hse-view"),                { loading: () => <SectionSkeleton />, ssr: false })
 
 // Settings Module
+const CompaniesView   = dynamic(() => import("@/components/views/companies-view"),          { loading: () => <SectionSkeleton />, ssr: false })
 const SettingsView    = dynamic(() => import("@/components/views/settings-view"),           { loading: () => <SectionSkeleton />, ssr: false })
 
 function SectionView({ section }: { section: string }) {
@@ -68,6 +70,7 @@ function SectionView({ section }: { section: string }) {
     case "fleet-fuel":        return <FuelView />
     case "fleet-maintenance": return <MaintenanceView />
     case "fleet-assignments": return <AssignmentsView />
+    case "fleet-summary":     return <FleetSummaryView />
     // HR
     case "hr-employees":      return <EmployeesView />
     case "hr-attendance":     return <AttendanceView />
@@ -79,6 +82,7 @@ function SectionView({ section }: { section: string }) {
     case "food":              return <FoodView />
     case "documents":         return <DocumentsView />
     case "hse":               return <HseView />
+    case "companies":         return <CompaniesView />
     case "settings":          return <SettingsView />
     default:                  return <DashboardView />
   }

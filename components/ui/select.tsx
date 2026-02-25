@@ -1,10 +1,15 @@
 "use client"
 
 import * as React from "react"
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon, Search, X } from "lucide-react"
 import { Select as SelectPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+
+const SelectSearchContext = React.createContext<{ search: string; setSearch: (s: string) => void }>({ 
+  search: "", 
+  setSearch: () => {} 
+})
 
 function Select({
   ...props
@@ -53,37 +58,81 @@ function SelectTrigger({
 function SelectContent({
   className,
   children,
-  position = "item-aligned",
+  position = "popper",
   align = "center",
+  showSearch = true,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+}: React.ComponentProps<typeof SelectPrimitive.Content> & { showSearch?: boolean }) {
+  const [search, setSearch] = React.useState("")
+
   return (
-    <SelectPrimitive.Portal>
-      <SelectPrimitive.Content
-        data-slot="select-content"
-        className={cn(
-          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border shadow-md",
-          position === "popper" &&
-            "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
-          className
-        )}
-        position={position}
-        align={align}
-        {...props}
-      >
-        <SelectScrollUpButton />
-        <SelectPrimitive.Viewport
+    <SelectSearchContext.Provider value={{ search, setSearch }}>
+      <SelectPrimitive.Portal>
+        <SelectPrimitive.Content
+          data-slot="select-content"
           className={cn(
-            "p-1",
+            "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border shadow-md",
             position === "popper" &&
-              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1"
+              "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+            className
           )}
+          position={position}
+          align={align}
+          {...props}
         >
-          {children}
-        </SelectPrimitive.Viewport>
-        <SelectScrollDownButton />
-      </SelectPrimitive.Content>
-    </SelectPrimitive.Portal>
+          {showSearch && (
+            <div 
+              className="flex items-center px-3 border-b py-2 gap-2 sticky top-0 bg-popover z-10" 
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                // Specifically allow backspace, space, and other common typing keys
+                // which Radix Select might try to capture.
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <Search className="size-3.5 shrink-0 opacity-50" />
+              <input 
+                className="flex h-7 w-full rounded-md bg-transparent text-xs outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Search..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                autoFocus
+                onKeyDown={(e) => {
+                  // Radix Select often blocks space and other keys.
+                  // We MUST stop propagation here to let the input handle it.
+                  e.stopPropagation();
+                }}
+                onFocus={(e) => e.currentTarget.select()}
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSearch("");
+                  }}
+                  className="p-1 hover:bg-accent rounded-md text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="size-3.5 opacity-50 hover:opacity-100" />
+                </button>
+              )}
+            </div>
+          )}
+          <SelectScrollUpButton />
+          <SelectPrimitive.Viewport
+            className={cn(
+              "p-1",
+              position === "popper" &&
+                "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1"
+            )}
+          >
+            {children}
+          </SelectPrimitive.Viewport>
+          <SelectScrollDownButton />
+        </SelectPrimitive.Content>
+      </SelectPrimitive.Portal>
+    </SelectSearchContext.Provider>
   )
 }
 
@@ -105,6 +154,14 @@ function SelectItem({
   children,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Item>) {
+  const { search } = React.useContext(SelectSearchContext)
+  
+  // Basic filtering logic
+  const textValue = props.textValue || (typeof children === "string" ? children : "")
+  const isVisible = textValue.toLowerCase().includes(search.toLowerCase())
+
+  if (search && !isVisible) return null
+
   return (
     <SelectPrimitive.Item
       data-slot="select-item"

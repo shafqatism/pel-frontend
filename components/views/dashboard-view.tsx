@@ -5,7 +5,8 @@ import {
   LayoutDashboard, Truck, Users, DollarSign, MapPin, 
   Activity, Package, AlertCircle, ShieldAlert,
   BarChart3, TrendingUp, PieChart as PieChartIcon,
-  ArrowUpRight, ArrowDownRight
+  ArrowUpRight, ArrowDownRight, Cog, ShieldCheck,
+  Building2
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { fleetApi } from "@/lib/api/fleet"
@@ -13,15 +14,23 @@ import { hrApi } from "@/lib/api/hr"
 import { financeApi } from "@/lib/api/finance"
 import { hseApi } from "@/lib/api/hse"
 import { sitesApi } from "@/lib/api/sites"
+import { companiesApi } from "@/lib/api/companies"
 import { Skeleton } from "@/components/ui/skeleton"
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie
 } from "recharts"
+import { useNav } from "@/lib/nav-context"
 
 const COLORS = ["#d97706", "#1f2937", "#6366f1", "#f43f5e", "#10b981"]
 
+import { HelpCircle } from "lucide-react"
+import { useAppDispatch } from "@/lib/store"
+import { openGlobalHelp } from "@/lib/store/slices/ui-slice"
+
 export default function DashboardView() {
+  const { setActive, setBreadcrumb } = useNav()
+  const dispatch = useAppDispatch()
   const { data: fleet, isLoading: fleetLoading } = useQuery({ queryKey: ["vehicles", "counts"], queryFn: () => fleetApi.vehicles.list({ limit: 0 }) })
   const { data: hr, isLoading: hrLoading } = useQuery({ queryKey: ["employees", "counts"], queryFn: () => hrApi.employees.list({ limit: 0 }) })
   const { data: sites, isLoading: sitesLoading } = useQuery({ queryKey: ["sites", "counts"], queryFn: () => sitesApi.sites.list({ limit: 0 }) })
@@ -29,12 +38,13 @@ export default function DashboardView() {
   
   const { data: trends, isLoading: trendsLoading } = useQuery({ queryKey: ["expenses", "trends"], queryFn: financeApi.expenses.trends })
   const { data: hseStats, isLoading: hseLoading } = useQuery({ queryKey: ["hse", "stats"], queryFn: hseApi.stats })
+  const { data: companies, isLoading: companiesLoading } = useQuery({ queryKey: ["companies", "counts"], queryFn: () => companiesApi.list({ limit: 0 }) })
   const { data: predictions } = useQuery({ queryKey: ["fleet", "predictions"], queryFn: fleetApi.vehicles.maintenancePredictions })
 
   const stats = [
     { label: "Active Vehicles", value: fleet?.total ?? 0, icon: Truck, change: "+2 this week", trend: "up", color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950/30", loading: fleetLoading },
     { label: "Total Manpower", value: hr?.total ?? 0, icon: Users, change: "+4 this month", trend: "up", color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30", loading: hrLoading },
-    { label: "Operational Sites", value: sites?.total ?? 0, icon: MapPin, change: "Active across regions", trend: "stable", color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30", loading: sitesLoading },
+    { label: "Company Registry", value: companies?.total ?? 0, icon: Building2, change: "Vendors & Partners", trend: "stable", color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/30", loading: companiesLoading },
     { label: "Monthly Expenditure", value: finance?.totalSpent ? `₨ ${(finance.totalSpent / 1000000).toFixed(1)}M` : "₨ 0", icon: DollarSign, change: "Current month", trend: "down", color: "text-rose-600", bg: "bg-rose-50 dark:bg-rose-950/30", loading: finLoading },
   ]
 
@@ -53,8 +63,13 @@ export default function DashboardView() {
           <p className="text-sm text-muted-foreground mt-0.5 font-medium">Analytics & Operational Overview for Petroleum Exploration Limited.</p>
         </div>
         <div className="flex items-center gap-2 bg-muted/30 p-1.5 rounded-2xl border border-border/50 backdrop-blur-sm">
-           <div className="px-3 py-1 rounded-xl bg-white dark:bg-black/40 shadow-sm text-[10px] font-black uppercase tracking-widest text-primary border border-primary/10">Production Mode</div>
-           <div className="px-3 py-1 text-[10px] font-bold text-muted-foreground tracking-widest uppercase">v1.2 Stable</div>
+           <button 
+             onClick={() => dispatch(openGlobalHelp({ module: 'dashboard', section: 'overview' }))}
+             className="px-3 py-1 rounded-xl bg-white dark:bg-black/40 shadow-sm text-[10px] font-black uppercase tracking-widest text-primary border border-primary/10 hover:bg-primary hover:text-white transition-all flex items-center gap-1.5"
+           >
+             <HelpCircle className="w-3.5 h-3.5" /> Help
+           </button>
+           <div className="px-3 py-1 text-[10px] font-bold text-muted-foreground tracking-widest uppercase border-l border-border/50 ml-1">v1.2 Stable</div>
         </div>
       </div>
 
@@ -82,6 +97,22 @@ export default function DashboardView() {
                 {stat.trend === "up" ? <ArrowUpRight className="w-3 h-3 text-emerald-500" /> : stat.trend === "down" ? <ArrowDownRight className="w-3 h-3 text-rose-500" /> : <Activity className="w-3 h-3" />}
                 {stat.change}
               </div>
+              {stat.label === "Active Vehicles" && (
+                <button 
+                  onClick={() => { setActive("fleet-summary"); setBreadcrumb(["Fleet", "Fleet Summary"]) }}
+                  className="mt-3 text-[9px] font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1 border-t border-border/20 pt-2 w-full"
+                >
+                  View Full Summary <ArrowUpRight className="w-2.5 h-2.5" />
+                </button>
+              )}
+              {stat.label === "Company Registry" && (
+                <button 
+                  onClick={() => { setActive("companies"); setBreadcrumb(["Companies"]) }}
+                  className="mt-3 text-[9px] font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1 border-t border-border/20 pt-2 w-full"
+                >
+                  Manage Organizations <ArrowUpRight className="w-2.5 h-2.5" />
+                </button>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -131,7 +162,7 @@ export default function DashboardView() {
                     />
                     <Tooltip 
                       contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold' }}
-                      formatter={(val: number) => [`₨ ${val.toLocaleString()}`, "Expenditure"]}
+                      formatter={(val) => [`₨ ${Number(val ?? 0).toLocaleString()}`, "Expenditure"]}
                     />
                     <Line 
                       type="monotone" 
@@ -175,9 +206,10 @@ export default function DashboardView() {
                       outerRadius={80}
                       paddingAngle={8}
                       dataKey="value"
+                      cornerRadius={10}
                     >
                       {hsePieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} cornerRadius={10} />
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip 

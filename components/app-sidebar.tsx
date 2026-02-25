@@ -12,6 +12,7 @@ import {
   Settings2,
   Landmark,
   ShieldAlert,
+  Building2,
 } from "lucide-react"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -43,6 +44,7 @@ const navItems = [
       { title: "Fuel", sectionId: "fleet-fuel" as const },
       { title: "Maintenance", sectionId: "fleet-maintenance" as const },
       { title: "Assignments", sectionId: "fleet-assignments" as const },
+      { title: "Fleet Summary", sectionId: "fleet-summary" as const },
     ],
   },
   {
@@ -88,6 +90,12 @@ const navItems = [
     title: "HSE & Safety",
     sectionId: "hse" as const,
     icon: ShieldAlert,
+    items: [],
+  },
+  {
+    title: "Companies",
+    sectionId: "companies" as const,
+    icon: Building2,
     items: [],
   },
   {

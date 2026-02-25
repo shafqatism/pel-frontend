@@ -9,12 +9,16 @@ export type Section =
   | "fleet-fuel"
   | "fleet-maintenance"
   | "fleet-assignments"
+  | "fleet-summary"
   | "hr-employees"
   | "hr-attendance"
   | "finance-expenses"
   | "sites"
+  | "land-rental"
   | "food"
   | "documents"
+  | "hse"
+  | "companies"
   | "settings"
 
 interface NavContextValue {

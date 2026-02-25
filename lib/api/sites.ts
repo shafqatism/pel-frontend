@@ -5,21 +5,21 @@ import type { PaginatedResponse } from "@/lib/types/fleet"
 export const sitesApi = {
   sites: {
     list: (params?: Record<string, unknown>) =>
-      api.get<PaginatedResponse<ProjectSite>>("/sites", { params }).then(r => r.data),
+      api.get<PaginatedResponse<ProjectSite>>("/project-sites", { params }).then(r => r.data),
 
     get: (id: string) =>
-      api.get<ProjectSite>(`/sites/${id}`).then(r => r.data),
+      api.get<ProjectSite>(`/project-sites/${id}`).then(r => r.data),
 
     create: (dto: CreateSiteDto) =>
-      api.post<ProjectSite>("/sites", dto).then(r => r.data),
+      api.post<ProjectSite>("/project-sites", dto).then(r => r.data),
 
     update: (id: string, dto: Partial<CreateSiteDto>) =>
-      api.patch<ProjectSite>(`/sites/${id}`, dto).then(r => r.data),
+      api.patch<ProjectSite>(`/project-sites/${id}`, dto).then(r => r.data),
 
     delete: (id: string) =>
-      api.delete(`/sites/${id}`).then(r => r.data),
+      api.delete(`/project-sites/${id}`).then(r => r.data),
     
     dropdown: () =>
-      api.get<Pick<ProjectSite, "id" | "siteName">[]>("/sites/dropdown").then(r => r.data).catch(() => []),
+      api.get<Pick<ProjectSite, "id" | "siteName">[]>("/project-sites/dropdown").then(r => r.data).catch(() => []),
   },
 }

@@ -5,6 +5,10 @@ import { DashboardShell } from "@/components/dashboard-shell"
 import { NavProvider, useNav } from "@/lib/nav-context"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
+import { useAuth } from "@/lib/auth-context"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
+import { Loader2 } from "lucide-react"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -35,7 +39,30 @@ function BreadcrumbNav() {
   )
 }
 
+import FleetDrawer from "@/components/fleet/fleet-drawer"
+import GlobalAnalyticsDrawer from "@/components/global-analytics"
+import GlobalHelpDrawer from "@/components/global-help"
+import CommandMenu from "@/components/dashboard/command-menu"
+import ExploreMenu from "@/components/dashboard/explore-menu"
+
 export default function DashboardPage() {
+  const { user, isLoading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login")
+    }
+  }, [user, isLoading, router])
+
+  if (isLoading || !user) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
     <NavProvider>
       <SidebarProvider>
@@ -47,12 +74,20 @@ export default function DashboardPage() {
               <SidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
               <BreadcrumbNav />
+              <div className="ml-auto flex items-center gap-2">
+                <CommandMenu />
+                <Separator orientation="vertical" className="h-4" />
+                <ExploreMenu />
+              </div>
             </div>
           </header>
 
           {/* Single page content area */}
           <main className="flex flex-1 flex-col p-6 min-h-[calc(100vh-3.5rem)]">
             <DashboardShell />
+            <FleetDrawer />
+            <GlobalAnalyticsDrawer />
+            <GlobalHelpDrawer />
           </main>
         </SidebarInset>
       </SidebarProvider>

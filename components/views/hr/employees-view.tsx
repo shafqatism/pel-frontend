@@ -1,16 +1,14 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { hrApi } from "@/lib/api/hr"
 import type { Employee, CreateEmployeeDto } from "@/lib/types/hr"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
@@ -19,8 +17,13 @@ import {
 } from "@/components/ui/table"
 import {
   Users, Plus, Search, RefreshCw, AlertTriangle,
-  UserPlus, Mail, Phone, Edit2, Trash2, Building2, Briefcase
+  Mail, Phone, Edit2, Trash2, Building2, Briefcase, BarChart3, HelpCircle
 } from "lucide-react"
+import { toast } from "sonner"
+import { useAppDispatch } from "@/lib/store"
+import { openGlobalAnalytics, openGlobalHelp } from "@/lib/store/slices/ui-slice"
+import { SearchableSelect } from "@/components/ui/searchable-select"
+import { useDynamicDropdown } from "@/hooks/use-dynamic-dropdown"
 
 const statusConfig = {
   active:     { label: "Active",     className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
@@ -29,33 +32,97 @@ const statusConfig = {
   resigned:   { label: "Resigned",   className: "bg-gray-100   text-gray-600   border-gray-200"   },
 }
 
+const DEFAULT_DESIGNATIONS = [
+  { label: "Manager", value: "Manager" },
+  { label: "Supervisor", value: "Supervisor" },
+  { label: "Operator", value: "Operator" },
+  { label: "Driver", value: "Driver" }
+]
+
+const DEFAULT_DEPARTMENTS = [
+  { label: "Operations", value: "Operations" },
+  { label: "HSE", value: "HSE" },
+  { label: "Fleet", value: "Fleet" },
+  { label: "Finance", value: "Finance" }
+]
+
+const mergeOptions = (defaults: { label: string; value: string }[], dynamic: { label: string; value: string }[]) => {
+  const merged = [...defaults]
+  dynamic.forEach(opt => {
+    if (!merged.find(m => m.value === opt.value)) {
+      merged.push(opt)
+    }
+  })
+  return merged
+}
+
 function StatusBadge({ status }: { status: string }) {
   const cfg = statusConfig[status as keyof typeof statusConfig] ?? { label: status, className: "" }
   return <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-0.5 rounded-full border ${cfg.className}`}>{cfg.label}</span>
 }
 
-function AddEmployeeDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function EmployeeDrawer({ open, onClose, data }: { open: boolean; onClose: () => void; data?: Employee | null }) {
   const qc = useQueryClient()
+  const mode = data ? 'edit' : 'create'
+  
+  const { options: deptOptions, createOption: createDept } = useDynamicDropdown("hr_department")
+  const { options: desigOptions, createOption: createDesig } = useDynamicDropdown("hr_designation")
+
   const { mutate, isPending } = useMutation({
-    mutationFn: (dto: CreateEmployeeDto) => hrApi.employees.create(dto),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["employees"] }); onClose() },
+    mutationFn: (dto: CreateEmployeeDto) => mode === 'create' ? hrApi.employees.create(dto) : hrApi.employees.update(data!.id, dto),
+    onSuccess: () => { 
+      qc.invalidateQueries({ queryKey: ["employees"] })
+      toast.success(mode === 'create' ? "Employee registered" : "Employee updated")
+      onClose() 
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || "Operation failed"),
   })
 
   const [form, setForm] = useState<CreateEmployeeDto>({
     fullName: "", designation: "", department: "", status: "active",
   })
 
+  const mergedDepts = useMemo(() => mergeOptions(DEFAULT_DEPARTMENTS, deptOptions), [deptOptions])
+  const mergedDesigs = useMemo(() => mergeOptions(DEFAULT_DESIGNATIONS, desigOptions), [desigOptions])
+
+  useEffect(() => {
+    if (data) {
+      setForm({
+        fullName: data.fullName || "",
+        fatherName: data.fatherName || "",
+        designation: data.designation || "",
+        department: data.department || "",
+        cnic: data.cnic || "",
+        email: data.email || "",
+        phone: data.phone || "",
+        basicSalary: Number(data.basicSalary) || 0,
+        joiningDate: data.joiningDate ? new Date(data.joiningDate).toISOString().split('T')[0] : "",
+        status: data.status || "active",
+        address: data.address || "",
+      })
+    } else {
+      setForm({ fullName: "", designation: "", department: "", status: "active" })
+    }
+  }, [data])
+
   const set = (k: keyof CreateEmployeeDto, v: any) => setForm(f => ({ ...f, [k]: v }))
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="w-4 h-4 text-primary" /> Register New Employee
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={e => { e.preventDefault(); mutate(form) }} className="space-y-4">
+    <Sheet open={open} onOpenChange={onClose}>
+      <SheetContent side="right" className="w-full sm:max-w-lg md:max-w-xl overflow-y-auto p-0">
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/40 px-6 py-5">
+          <SheetHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                <Users className="w-4 h-4" />
+              </div>
+              <SheetTitle className="text-base">{mode === 'create' ? "Register New Employee" : "Edit Employee Details"}</SheetTitle>
+            </div>
+            <SheetDescription className="text-xs">Manage personnel details, designations, and departmental assignments.</SheetDescription>
+          </SheetHeader>
+        </div>
+
+        <form onSubmit={e => { e.preventDefault(); mutate(form) }} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Full Name *</Label>
@@ -67,11 +134,23 @@ function AddEmployeeDialog({ open, onClose }: { open: boolean; onClose: () => vo
             </div>
             <div className="space-y-1.5">
               <Label>Designation *</Label>
-              <Input placeholder="Software Engineer" value={form.designation} onChange={e => set("designation", e.target.value)} required />
+              <SearchableSelect
+                options={mergedDesigs}
+                value={form.designation}
+                onValueChange={v => set("designation", v)}
+                onCreate={createDesig}
+                placeholder="Select designation"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Department *</Label>
-              <Input placeholder="IT" value={form.department} onChange={e => set("department", e.target.value)} required />
+              <SearchableSelect
+                options={mergedDepts}
+                value={form.department}
+                onValueChange={v => set("department", v)}
+                onCreate={createDept}
+                placeholder="Select department"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>CNIC</Label>
@@ -110,21 +189,22 @@ function AddEmployeeDialog({ open, onClose }: { open: boolean; onClose: () => vo
               <Input placeholder="House #, Street, City" value={form.address ?? ""} onChange={e => set("address", e.target.value)} />
             </div>
           </div>
-          <DialogFooter>
+          <div className="flex justify-end gap-3 pt-4 border-t border-border/40 mt-6">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Registering…" : "Register Employee"}
+            <Button type="submit" disabled={isPending} className="font-bold">
+              {isPending ? "Saving…" : mode === 'create' ? "Register Employee" : "Save Changes"}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }
 
 export default function EmployeesView() {
+  const dispatch = useAppDispatch()
   const [search, setSearch] = useState("")
-  const [showAdd, setShowAdd] = useState(false)
+  const [dialog, setDialog] = useState<{ open: boolean; data: Employee | null }>({ open: false, data: null })
   const qc = useQueryClient()
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -134,7 +214,10 @@ export default function EmployeesView() {
 
   const { mutate: deleteEmployee } = useMutation({
     mutationFn: (id: string) => hrApi.employees.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["employees"] }),
+    onSuccess: () => { 
+      qc.invalidateQueries({ queryKey: ["employees"] })
+      toast.success("Employee removed")
+    },
   })
 
   return (
@@ -145,10 +228,26 @@ export default function EmployeesView() {
           <p className="text-sm text-muted-foreground mt-0.5">Manage personnel, profiles, and designations</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => dispatch(openGlobalAnalytics({ module: 'hr', type: 'employees' }))}
+            className="border-primary/20 hover:bg-primary/5 text-primary font-bold"
+          >
+            <BarChart3 className="w-4 h-4 mr-1.5" /> Analytics
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => dispatch(openGlobalHelp({ module: 'hr', section: 'employees' }))}
+            className="border-slate-200 hover:bg-slate-50 text-slate-700 font-bold"
+          >
+            <HelpCircle className="w-4 h-4 mr-1.5" /> Help
+          </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Refresh
           </Button>
-          <Button size="sm" onClick={() => setShowAdd(true)}>
+          <Button size="sm" onClick={() => setDialog({ open: true, data: null })} className="font-bold">
             <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Employee
           </Button>
         </div>
@@ -226,7 +325,8 @@ export default function EmployeesView() {
                     <TableCell><StatusBadge status={emp.status} /></TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          onClick={() => setDialog({ open: true, data: emp })}>
                           <Edit2 className="w-3.5 h-3.5" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-rose-600"
@@ -243,7 +343,11 @@ export default function EmployeesView() {
         )}
       </Card>
 
-      <AddEmployeeDialog open={showAdd} onClose={() => setShowAdd(false)} />
+      <EmployeeDrawer 
+        open={dialog.open} 
+        onClose={() => setDialog({ open: false, data: null })} 
+        data={dialog.data} 
+      />
     </div>
   )
 }

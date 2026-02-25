@@ -4,6 +4,8 @@ import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryProvider } from "@/lib/query-provider";
 import { AuthProvider } from "@/lib/auth-context";
+import { StoreProvider } from "@/lib/store/store-provider";
+import { Toaster } from "sonner";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -25,13 +27,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${dmSans.variable} font-sans antialiased bg-background text-foreground`}>
-        <QueryProvider>
-          <AuthProvider>
-            <TooltipProvider>
-              {children}
-            </TooltipProvider>
-          </AuthProvider>
-        </QueryProvider>
+        <StoreProvider>
+          <QueryProvider>
+            <AuthProvider>
+              <TooltipProvider>
+                {children}
+                <Toaster richColors position="top-right" />
+              </TooltipProvider>
+            </AuthProvider>
+          </QueryProvider>
+        </StoreProvider>
       </body>
     </html>
   );

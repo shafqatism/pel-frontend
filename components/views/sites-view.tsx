@@ -1,18 +1,22 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { sitesApi } from "@/lib/api/sites"
 import type { ProjectSite, CreateSiteDto } from "@/lib/types/sites"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
-import { MapPin, Plus, RefreshCw, AlertTriangle, Trash2, User, Phone, Globe, Activity, HardHat } from "lucide-react"
+import { MapPin, Plus, RefreshCw, AlertTriangle, Trash2, User, Phone, Globe, Activity, HardHat, BarChart3, HelpCircle } from "lucide-react"
+import { useAppDispatch } from "@/lib/store"
+import { openGlobalAnalytics, openGlobalHelp } from "@/lib/store/slices/ui-slice"
+import { SearchableSelect } from "@/components/ui/searchable-select"
+import { useDynamicDropdown } from "@/hooks/use-dynamic-dropdown"
 
 const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
 
@@ -23,13 +27,39 @@ const phaseConfig = {
   decommissioned: { label: "Decommissioned", className: "bg-gray-100 text-gray-700 border-gray-200" },
 }
 
+const DEFAULT_PHASES = [
+  { label: "Exploration", value: "exploration" },
+  { label: "Drilling", value: "drilling" },
+  { label: "Production", value: "production" },
+  { label: "Decommissioned", value: "decommissioned" }
+]
+
+const DEFAULT_STATUSES = [
+  { label: "Active", value: "active" },
+  { label: "Inactive", value: "inactive" }
+]
+
+const mergeOptions = (defaults: { label: string; value: string }[], dynamic: { label: string; value: string }[]) => {
+  const merged = [...defaults]
+  dynamic.forEach(opt => {
+    if (!merged.find(m => m.value === opt.value)) {
+      merged.push(opt)
+    }
+  })
+  return merged
+}
+
 function PhaseBadge({ phase }: { phase: string }) {
   const cfg = phaseConfig[phase as keyof typeof phaseConfig] ?? { label: phase, className: "bg-gray-100" }
   return <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${cfg.className}`}>{cfg.label}</span>
 }
 
-function AddSiteDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function AddSiteDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient()
+  
+  const { options: phaseOptions, createOption: createPhase } = useDynamicDropdown("site_phase")
+  const { options: statusOptions, createOption: createStatus } = useDynamicDropdown("site_status")
+
   const { mutate, isPending } = useMutation({
     mutationFn: (dto: CreateSiteDto) => sitesApi.sites.create(dto),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["sites"] }); onClose() },
@@ -39,17 +69,27 @@ function AddSiteDialog({ open, onClose }: { open: boolean; onClose: () => void }
     siteName: "", phase: "exploration", status: "active",
   })
 
+  const mergedPhases = useMemo(() => mergeOptions(DEFAULT_PHASES, phaseOptions), [phaseOptions])
+  const mergedStatuses = useMemo(() => mergeOptions(DEFAULT_STATUSES, statusOptions), [statusOptions])
+
   const set = (k: keyof CreateSiteDto, v: any) => setForm(f => ({ ...f, [k]: v }))
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Plus className="w-4 h-4 text-primary" /> Create New Project Site
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={e => { e.preventDefault(); mutate(form) }} className="space-y-4">
+    <Sheet open={open} onOpenChange={onClose}>
+      <SheetContent side="right" className="w-full sm:max-w-lg md:max-w-xl overflow-y-auto p-0">
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/40 px-6 py-5">
+          <SheetHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                <MapPin className="w-4 h-4" />
+              </div>
+              <SheetTitle className="text-base">Create New Project Site</SheetTitle>
+            </div>
+            <SheetDescription className="text-xs">Register a new field operation or drilling location.</SheetDescription>
+          </SheetHeader>
+        </div>
+
+        <form onSubmit={e => { e.preventDefault(); mutate(form) }} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Site Name *</Label>
@@ -73,15 +113,12 @@ function AddSiteDialog({ open, onClose }: { open: boolean; onClose: () => void }
             </div>
             <div className="space-y-1.5">
               <Label>Phase</Label>
-              <Select value={form.phase} onValueChange={v => set("phase", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="exploration">Exploration</SelectItem>
-                  <SelectItem value="drilling">Drilling</SelectItem>
-                  <SelectItem value="production">Production</SelectItem>
-                  <SelectItem value="decommissioned">Decommissioned</SelectItem>
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={mergedPhases}
+                value={form.phase}
+                onValueChange={v => set("phase", v)}
+                onCreate={createPhase}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Site In Charge</Label>
@@ -97,30 +134,32 @@ function AddSiteDialog({ open, onClose }: { open: boolean; onClose: () => void }
             </div>
             <div className="space-y-1.5">
               <Label>Status</Label>
-              <Select value={form.status} onValueChange={v => set("status", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={mergedStatuses}
+                value={form.status}
+                onValueChange={v => set("status", v)}
+                onCreate={createStatus}
+              />
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Description</Label>
               <Textarea placeholder="Site details and objectives..." value={form.description ?? ""} onChange={e => set("description", e.target.value)} rows={2} />
             </div>
           </div>
-          <DialogFooter>
+          <div className="flex justify-end gap-3 pt-4 border-t border-border/40 mt-6">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={isPending}>{isPending ? "Creating..." : "Create Site"}</Button>
-          </DialogFooter>
+            <Button type="submit" disabled={isPending} className="font-bold">
+              {isPending ? "Creating..." : "Create Site"}
+            </Button>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }
 
 export default function SitesView() {
+  const dispatch = useAppDispatch()
   const [showAdd, setShowAdd] = useState(false)
   const qc = useQueryClient()
 
@@ -148,8 +187,24 @@ export default function SitesView() {
           <p className="text-sm text-muted-foreground mt-0.5">Manage field operations, drilling locations, and site leadership</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => dispatch(openGlobalAnalytics({ module: 'sites', type: 'sites' }))}
+            className="border-primary/20 hover:bg-primary/5 text-primary font-bold"
+          >
+            <BarChart3 className="w-4 h-4 mr-1.5" /> Analytics
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => dispatch(openGlobalHelp({ module: 'sites', section: 'sites' }))}
+            className="border-slate-200 hover:bg-slate-50 text-slate-700 font-bold"
+          >
+            <HelpCircle className="w-4 h-4 mr-1.5" /> Help
+          </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()}><RefreshCw className="w-3.5 h-3.5 mr-1.5" />Refresh</Button>
-          <Button size="sm" onClick={() => setShowAdd(true)}><Plus className="w-3.5 h-3.5 mr-1.5" />New Site</Button>
+          <Button size="sm" onClick={() => setShowAdd(true)} className="font-bold"><Plus className="w-3.5 h-3.5 mr-1.5" />New Site</Button>
         </div>
       </div>
 
@@ -242,7 +297,7 @@ export default function SitesView() {
         )}
       </Card>
 
-      <AddSiteDialog open={showAdd} onClose={() => setShowAdd(false)} />
+      <AddSiteDrawer open={showAdd} onClose={() => setShowAdd(false)} />
     </div>
   )
 }

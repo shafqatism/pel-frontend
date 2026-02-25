@@ -1,17 +1,21 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { hrApi } from "@/lib/api/hr"
 import type { Attendance, CreateAttendanceDto } from "@/lib/types/hr"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Calendar, Plus, RefreshCw, AlertTriangle, Trash2, Clock, MapPin } from "lucide-react"
+import { Calendar, Plus, RefreshCw, AlertTriangle, Trash2, Clock, MapPin, Edit2, BarChart3, HelpCircle } from "lucide-react"
+import { toast } from "sonner"
+import { useAppDispatch } from "@/lib/store"
+import { openGlobalAnalytics, openGlobalHelp } from "@/lib/store/slices/ui-slice"
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
 const fmtTime = (d: string | undefined) => d ? new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "—"
@@ -30,34 +34,68 @@ function AttendanceStatus({ status }: { status: string }) {
   return <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${cfg.className}`}>{cfg.label}</span>
 }
 
-function MarkAttendanceDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function AttendanceDrawer({ open, onClose, data }: { open: boolean; onClose: () => void; data?: Attendance | null }) {
   const qc = useQueryClient()
+  const mode = data ? 'edit' : 'create'
   const { data: employees } = useQuery({ queryKey: ["employees", "dropdown"], queryFn: hrApi.employees.dropdown })
+  
   const { mutate, isPending } = useMutation({
-    mutationFn: (dto: CreateAttendanceDto) => hrApi.attendance.create(dto),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["attendance"] }); onClose() },
+    mutationFn: (dto: CreateAttendanceDto) => mode === 'create' ? hrApi.attendance.create(dto) : hrApi.attendance.update(data!.id, dto),
+    onSuccess: () => { 
+      qc.invalidateQueries({ queryKey: ["attendance"] })
+      toast.success(mode === 'create' ? "Attendance marked" : "Record updated")
+      onClose() 
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || "Operation failed")
   })
 
   const [form, setForm] = useState<CreateAttendanceDto>({
     employeeId: "", date: today(), status: "present",
   })
 
+  useEffect(() => {
+    if (data) {
+      setForm({
+        employeeId: data.employeeId || data.employee?.id || "",
+        date: data.date ? new Date(data.date).toISOString().split('T')[0] : today(),
+        status: data.status || "present",
+        checkIn: data.checkIn ? new Date(data.checkIn).toISOString().slice(0, 16) : "",
+        checkOut: data.checkOut ? new Date(data.checkOut).toISOString().slice(0, 16) : "",
+        site: data.site || "",
+      })
+    } else {
+      setForm({ employeeId: "", date: today(), status: "present" })
+    }
+  }, [data])
+
   const set = (k: keyof CreateAttendanceDto, v: any) => setForm(f => ({ ...f, [k]: v }))
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle className="flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> Mark Attendance</DialogTitle></DialogHeader>
-        <form onSubmit={e => { e.preventDefault(); mutate(form) }} className="space-y-4">
+    <Sheet open={open} onOpenChange={onClose}>
+      <SheetContent side="right" className="w-full sm:max-w-lg md:max-w-xl overflow-y-auto p-0">
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/40 px-6 py-5">
+          <SheetHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                <Clock className="w-4 h-4" />
+              </div>
+              <SheetTitle className="text-base">{mode === 'create' ? "Mark Attendance" : "Edit Attendance Record"}</SheetTitle>
+            </div>
+            <SheetDescription className="text-xs">Record or update daily check-ins, check-outs, and site presence.</SheetDescription>
+          </SheetHeader>
+        </div>
+
+        <form onSubmit={e => { e.preventDefault(); mutate(form) }} className="p-6 space-y-4">
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label>Employee *</Label>
-              <Select value={form.employeeId} onValueChange={v => set("employeeId", v)}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                <SelectContent>
-                  {(employees ?? []).map(e => <SelectItem key={e.id} value={e.id}>{e.fullName}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={(employees ?? []).map(e => ({ label: e.fullName, value: e.id }))}
+                value={form.employeeId}
+                onValueChange={v => set("employeeId", v)}
+                placeholder="Select employee"
+                triggerClassName={mode === 'edit' ? "opacity-50 pointer-events-none" : ""}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Date *</Label>
@@ -66,11 +104,13 @@ function MarkAttendanceDialog({ open, onClose }: { open: boolean; onClose: () =>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Check In</Label>
-                <Input type="time" onChange={e => set("checkIn", `${form.date}T${e.target.value}:00`)} />
+                <Input type="time" value={form.checkIn ? form.checkIn.split('T')[1].slice(0, 5) : ""} 
+                  onChange={e => set("checkIn", `${form.date}T${e.target.value}:00`)} />
               </div>
               <div className="space-y-1.5">
                 <Label>Check Out</Label>
-                <Input type="time" onChange={e => set("checkOut", `${form.date}T${e.target.value}:00`)} />
+                <Input type="time" value={form.checkOut ? form.checkOut.split('T')[1].slice(0, 5) : ""} 
+                  onChange={e => set("checkOut", `${form.date}T${e.target.value}:00`)} />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -87,19 +127,22 @@ function MarkAttendanceDialog({ open, onClose }: { open: boolean; onClose: () =>
               <Input placeholder="Site Alpha" value={form.site ?? ""} onChange={e => set("site", e.target.value)} />
             </div>
           </div>
-          <DialogFooter>
+          <div className="flex justify-end gap-3 pt-4 border-t border-border/40 mt-6">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={isPending || !form.employeeId}>{isPending ? "Saving…" : "Save Record"}</Button>
-          </DialogFooter>
+            <Button type="submit" disabled={isPending || !form.employeeId} className="font-bold">
+              {isPending ? "Saving…" : mode === 'create' ? "Save Record" : "Save Changes"}
+            </Button>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }
 
 export default function AttendanceView() {
+  const dispatch = useAppDispatch()
   const [date, setDate] = useState(today())
-  const [showAdd, setShowAdd] = useState(false)
+  const [dialog, setDialog] = useState<{ open: boolean, data: Attendance | null }>({ open: false, data: null })
   const qc = useQueryClient()
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -109,7 +152,7 @@ export default function AttendanceView() {
 
   const { mutate: deleteRecord } = useMutation({
     mutationFn: (id: string) => hrApi.attendance.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance"] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["attendance"] }); toast.success("Record removed") },
   })
 
   return (
@@ -120,9 +163,25 @@ export default function AttendanceView() {
           <p className="text-sm text-muted-foreground mt-0.5">Track daily check-ins, check-outs, and site presence</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => dispatch(openGlobalAnalytics({ module: 'hr', type: 'attendance' }))}
+            className="border-primary/20 hover:bg-primary/5 text-primary font-bold"
+          >
+            <BarChart3 className="w-4 h-4 mr-1.5" /> Analytics
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => dispatch(openGlobalHelp({ module: 'hr', section: 'attendance' }))}
+            className="border-slate-200 hover:bg-slate-50 text-slate-700 font-bold"
+          >
+            <HelpCircle className="w-4 h-4 mr-1.5" /> Help
+          </Button>
           <Input type="date" className="h-9 w-40 text-sm" value={date} onChange={e => setDate(e.target.value)} />
           <Button variant="outline" size="sm" onClick={() => refetch()}><RefreshCw className="w-3.5 h-3.5 mr-1.5" />Refresh</Button>
-          <Button size="sm" onClick={() => setShowAdd(true)}><Plus className="w-3.5 h-3.5 mr-1.5" />Mark Attendance</Button>
+          <Button size="sm" onClick={() => setDialog({ open: true, data: null })} className="font-bold"><Plus className="w-3.5 h-3.5 mr-1.5" />Mark Attendance</Button>
         </div>
       </div>
 
@@ -146,7 +205,7 @@ export default function AttendanceView() {
                 <TableHead className="font-bold text-xs uppercase tracking-wide">Check Out</TableHead>
                 <TableHead className="font-bold text-xs uppercase tracking-wide">Site</TableHead>
                 <TableHead className="font-bold text-xs uppercase tracking-wide">Status</TableHead>
-                <TableHead className="w-16"></TableHead>
+                <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -174,10 +233,16 @@ export default function AttendanceView() {
                     </TableCell>
                     <TableCell><AttendanceStatus status={record.status} /></TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-rose-600"
-                        onClick={() => { if (confirm("Delete this record?")) deleteRecord(record.id) }}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          onClick={() => setDialog({ open: true, data: record })}>
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-rose-600"
+                          onClick={() => { if (confirm("Delete this record?")) deleteRecord(record.id) }}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -187,7 +252,11 @@ export default function AttendanceView() {
         )}
       </Card>
 
-      <MarkAttendanceDialog open={showAdd} onClose={() => setShowAdd(false)} />
+      <AttendanceDrawer 
+        open={dialog.open} 
+        onClose={() => setDialog({ open: false, data: null })} 
+        data={dialog.data} 
+      />
     </div>
   )
 }

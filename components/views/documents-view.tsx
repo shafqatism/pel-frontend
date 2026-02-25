@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
@@ -16,8 +16,10 @@ import { Badge } from "@/components/ui/badge"
 import {
   FileText, Plus, RefreshCw, AlertTriangle, Trash2, Search,
   Download, FileCheck, FileWarning, Shield, FolderOpen,
-  Briefcase, MapPin, Calendar, Clock, Tag
+  Briefcase, MapPin, Calendar, Clock, Tag, BarChart3, HelpCircle
 } from "lucide-react"
+import { useAppDispatch } from "@/lib/store"
+import { openGlobalAnalytics, openGlobalHelp } from "@/lib/store/slices/ui-slice"
 
 const categories = [
   { id: "sop", label: "SOPs", icon: Shield, color: "text-blue-600", bg: "bg-blue-50" },
@@ -27,7 +29,7 @@ const categories = [
   { id: "other", label: "General", icon: FolderOpen, color: "text-gray-600", bg: "bg-gray-50" },
 ]
 
-function AddDocumentDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function AddDocumentDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient()
   const { mutate, isPending } = useMutation({
     mutationFn: (dto: CreateDocumentDto) => documentsApi.documents.create(dto),
@@ -41,14 +43,21 @@ function AddDocumentDialog({ open, onClose }: { open: boolean; onClose: () => vo
   const set = (k: keyof CreateDocumentDto, v: any) => setForm(f => ({ ...f, [k]: v }))
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Plus className="w-4 h-4 text-primary" /> Register New Document
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={e => { e.preventDefault(); mutate(form) }} className="space-y-4">
+    <Sheet open={open} onOpenChange={onClose}>
+      <SheetContent side="right" className="w-full sm:max-w-lg md:max-w-xl overflow-y-auto p-0">
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/40 px-6 py-5">
+          <SheetHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                <FileText className="w-4 h-4" />
+              </div>
+              <SheetTitle className="text-base">Register New Document</SheetTitle>
+            </div>
+            <SheetDescription className="text-xs">Upload or link a new SOP, report, or certificate to the vault.</SheetDescription>
+          </SheetHeader>
+        </div>
+
+        <form onSubmit={e => { e.preventDefault(); mutate(form) }} className="p-6 space-y-4">
           <div className="grid gap-4">
             <div className="space-y-1.5">
               <Label>Document Title *</Label>
@@ -95,17 +104,20 @@ function AddDocumentDialog({ open, onClose }: { open: boolean; onClose: () => vo
               <Textarea placeholder="Scope and version details..." value={form.description ?? ""} onChange={e => set("description", e.target.value)} rows={2} />
             </div>
           </div>
-          <DialogFooter>
+          <div className="flex justify-end gap-3 pt-4 border-t border-border/40 mt-6">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={isPending}>{isPending ? "Uploading..." : "Save Document"}</Button>
-          </DialogFooter>
+            <Button type="submit" disabled={isPending} className="font-bold">
+              {isPending ? "Uploading..." : "Save Document"}
+            </Button>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }
 
 export default function DocumentsView() {
+  const dispatch = useAppDispatch()
   const [showAdd, setShowAdd] = useState(false)
   const [filter, setFilter] = useState("all")
   const qc = useQueryClient()
@@ -131,6 +143,22 @@ export default function DocumentsView() {
           <p className="text-sm text-muted-foreground mt-0.5">Centralized repository for certificates, SOPs, and field records</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => dispatch(openGlobalAnalytics({ module: 'documents', type: 'documents' }))}
+            className="border-primary/20 hover:bg-primary/5 text-primary font-bold"
+          >
+            <BarChart3 className="w-4 h-4 mr-1.5" /> Analytics
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => dispatch(openGlobalHelp({ module: 'documents', section: 'documents' }))}
+            className="border-slate-200 hover:bg-slate-50 text-slate-700 font-bold"
+          >
+            <HelpCircle className="w-4 h-4 mr-1.5" /> Help
+          </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()}><RefreshCw className="w-3.5 h-3.5 mr-1.5" />Refresh</Button>
           <Button size="sm" onClick={() => setShowAdd(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
             <Plus className="w-3.5 h-3.5 mr-1.5" /> New Record
@@ -258,7 +286,7 @@ export default function DocumentsView() {
         )}
       </Card>
 
-      <AddDocumentDialog open={showAdd} onClose={() => setShowAdd(false)} />
+      <AddDocumentDrawer open={showAdd} onClose={() => setShowAdd(false)} />
     </div>
   )
 }

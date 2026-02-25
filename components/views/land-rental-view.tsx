@@ -8,16 +8,18 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
-import { Landmark, Plus, RefreshCw, AlertTriangle, Trash2, User, MapPin, Calendar, DollarSign, FileText } from "lucide-react"
+import { Landmark, Plus, RefreshCw, AlertTriangle, Trash2, User, MapPin, Calendar, DollarSign, FileText, BarChart3, HelpCircle } from "lucide-react"
+import { useAppDispatch } from "@/lib/store"
+import { openGlobalAnalytics, openGlobalHelp } from "@/lib/store/slices/ui-slice"
 
 const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
 const today = () => new Date().toISOString().split("T")[0]
 
-function AddRentalDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function AddRentalDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient()
   const { mutate, isPending } = useMutation({
     mutationFn: (dto: CreateLandRentalDto) => landRentalApi.rentals.create(dto),
@@ -31,14 +33,21 @@ function AddRentalDialog({ open, onClose }: { open: boolean; onClose: () => void
   const set = (k: keyof CreateLandRentalDto, v: any) => setForm(f => ({ ...f, [k]: v }))
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Landmark className="w-4 h-4 text-primary" /> New Land Lease Agreement
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={e => { e.preventDefault(); mutate(form) }} className="space-y-4">
+    <Sheet open={open} onOpenChange={onClose}>
+      <SheetContent side="right" className="w-full sm:max-w-lg md:max-w-xl overflow-y-auto p-0">
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/40 px-6 py-5">
+          <SheetHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                <Landmark className="w-4 h-4" />
+              </div>
+              <SheetTitle className="text-base">New Land Lease Agreement</SheetTitle>
+            </div>
+            <SheetDescription className="text-xs">Register a new land lease agreement for drilling or operational needs.</SheetDescription>
+          </SheetHeader>
+        </div>
+
+        <form onSubmit={e => { e.preventDefault(); mutate(form) }} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Owner Name *</Label>
@@ -100,17 +109,20 @@ function AddRentalDialog({ open, onClose }: { open: boolean; onClose: () => void
               <Input placeholder="Drilling pad, storage, access road, etc." value={form.purpose ?? ""} onChange={e => set("purpose", e.target.value)} />
             </div>
           </div>
-          <DialogFooter>
+          <div className="flex justify-end gap-3 pt-4 border-t border-border/40 mt-6">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={isPending}>{isPending ? "Saving..." : "Create Agreement"}</Button>
-          </DialogFooter>
+            <Button type="submit" disabled={isPending} className="font-bold">
+              {isPending ? "Saving..." : "Create Agreement"}
+            </Button>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }
 
 export default function LandRentalView() {
+  const dispatch = useAppDispatch()
   const [showAdd, setShowAdd] = useState(false)
   const qc = useQueryClient()
 
@@ -137,6 +149,22 @@ export default function LandRentalView() {
           <p className="text-sm text-muted-foreground mt-0.5">Track land lease agreements, payments, and site acquisitions</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => dispatch(openGlobalAnalytics({ module: 'rental', type: 'rental' }))}
+            className="border-primary/20 hover:bg-primary/5 text-primary font-bold"
+          >
+            <BarChart3 className="w-4 h-4 mr-1.5" /> Analytics
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => dispatch(openGlobalHelp({ module: 'rental', section: 'rental' }))}
+            className="border-slate-200 hover:bg-slate-50 text-slate-700 font-bold"
+          >
+            <HelpCircle className="w-4 h-4 mr-1.5" /> Help
+          </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()}><RefreshCw className="w-3.5 h-3.5 mr-1.5" />Refresh</Button>
           <Button size="sm" onClick={() => setShowAdd(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
             <Plus className="w-3.5 h-3.5 mr-1.5" /> New Agreement
@@ -246,7 +274,7 @@ export default function LandRentalView() {
         )}
       </Card>
 
-      <AddRentalDialog open={showAdd} onClose={() => setShowAdd(false)} />
+      <AddRentalDrawer open={showAdd} onClose={() => setShowAdd(false)} />
     </div>
   )
 }

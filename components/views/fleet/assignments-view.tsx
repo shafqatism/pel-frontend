@@ -3,188 +3,129 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import { fleetApi } from "@/lib/api/fleet"
-import type { CreateAssignmentDto } from "@/lib/types/fleet"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ClipboardList, Plus, RefreshCw, AlertTriangle, Trash2, Users } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { MoreHorizontal, Pencil, Trash2, RefreshCw, AlertTriangle, UserCheck } from "lucide-react"
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
+import { toast } from "sonner"
+import { useAppDispatch } from "@/lib/store"
+import { openFleetDrawer } from "@/lib/store/slices/ui-slice"
+import FleetHeader from "@/components/fleet/fleet-header"
 
 const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-const today = () => new Date().toISOString().split("T")[0]
-
-function AddAssignmentDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const qc = useQueryClient()
-  const { data: vehicles } = useQuery({ queryKey: ["vehicles", "dropdown"], queryFn: fleetApi.vehicles.dropdown })
-  const { mutate, isPending } = useMutation({
-    mutationFn: (dto: CreateAssignmentDto) => fleetApi.assignments.create(dto),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["assignments"] }); onClose() },
-  })
-
-  const [form, setForm] = useState<CreateAssignmentDto>({
-    vehicleId: "", assignedTo: "", assignedBy: "", assignmentDate: today(),
-  })
-  const set = <K extends keyof CreateAssignmentDto>(k: K, v: CreateAssignmentDto[K]) =>
-    setForm(f => ({ ...f, [k]: v }))
-
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ClipboardList className="w-4 h-4 text-primary" /> New Vehicle Assignment
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={e => { e.preventDefault(); mutate(form) }} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2 space-y-1.5">
-              <Label>Vehicle *</Label>
-              <Select value={form.vehicleId} onValueChange={v => set("vehicleId", v)}>
-                <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
-                <SelectContent>
-                  {(vehicles ?? []).map(v => (
-                    <SelectItem key={v.id} value={v.id}>{v.registrationNumber} — {v.vehicleName}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Assigned To *</Label>
-              <Input placeholder="Employee name" value={form.assignedTo} onChange={e => set("assignedTo", e.target.value)} required />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Assigned By *</Label>
-              <Input placeholder="Manager name" value={form.assignedBy} onChange={e => set("assignedBy", e.target.value)} required />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Assignment Date *</Label>
-              <Input type="date" value={form.assignmentDate} onChange={e => set("assignmentDate", e.target.value)} required />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Return Date</Label>
-              <Input type="date" value={form.returnDate ?? ""} onChange={e => set("returnDate", e.target.value)} />
-            </div>
-            <div className="col-span-2 space-y-1.5">
-              <Label>Purpose</Label>
-              <Input placeholder="Field visit, project site, etc." value={form.purpose ?? ""} onChange={e => set("purpose", e.target.value)} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={isPending || !form.vehicleId}>{isPending ? "Saving…" : "Create Assignment"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
 
 export default function AssignmentsView() {
-  const [showAdd, setShowAdd] = useState(false)
   const qc = useQueryClient()
+  const dispatch = useAppDispatch()
+  const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
+  const limit = 10
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["assignments"],
-    queryFn: () => fleetApi.assignments.list({ limit: 50 }),
+    queryKey: ["assignments", { search, page }],
+    queryFn: () => fleetApi.assignments.list({ search, page, limit }),
   })
 
-  const { mutate: del } = useMutation({
+  const { mutate: deleteAssignment } = useMutation({
     mutationFn: (id: string) => fleetApi.assignments.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["assignments"] }),
+    onSuccess: () => {
+      toast.success("Assignment removed")
+      qc.invalidateQueries({ queryKey: ["assignments"] })
+    }
   })
 
-  const activeCount = data?.data.filter(a => a.status === "active").length ?? 0
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'active': return <Badge className="bg-emerald-500/10 text-emerald-700 border-emerald-500/20">Active</Badge>
+      case 'returned': return <Badge variant="secondary">Returned</Badge>
+      case 'extended': return <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20">Extended</Badge>
+      default: return <Badge variant="outline" className="capitalize">{status}</Badge>
+    }
+  }
 
   return (
-    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-300">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Vehicle Assignments</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Track vehicle-to-employee allocations</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => refetch()}><RefreshCw className="w-3.5 h-3.5 mr-1.5" />Refresh</Button>
-          <Button size="sm" onClick={() => setShowAdd(true)}><Plus className="w-3.5 h-3.5 mr-1.5" />New Assignment</Button>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: "Total Assignments", value: data?.total ?? 0, color: "text-primary" },
-          { label: "Currently Active", value: activeCount, color: "text-emerald-600" },
-          { label: "Completed / Returned", value: (data?.total ?? 0) - activeCount, color: "text-muted-foreground" },
-        ].map(s => (
-          <Card key={s.label} className="rounded-xl border-border/50 shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-primary/10">
-                <Users className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">{s.label}</p>
-                <p className={`text-xl font-black mt-0.5 ${s.color}`}>{s.value}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+    <div className="space-y-6">
+      <FleetHeader
+        title="Vehicle Assignments"
+        subtitle="Track which vehicles are assigned to which personnel"
+        type="assignment"
+        onSearch={setSearch}
+        exportType="assignments"
+      />
 
       <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
         {isLoading ? (
-          <CardContent className="py-16 text-center text-muted-foreground text-sm">
-            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />Loading assignments…
-          </CardContent>
+          <div className="py-20 text-center">
+            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-primary opacity-20" />
+            <p className="text-muted-foreground text-sm">Loading assignments...</p>
+          </div>
         ) : error ? (
-          <CardContent className="py-16 text-center text-sm">
-            <AlertTriangle className="w-6 h-6 text-rose-500 mx-auto mb-2" />
-            <p className="font-semibold text-rose-600">Failed to load assignments</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>Retry</Button>
-          </CardContent>
+          <div className="py-20 text-center">
+            <AlertTriangle className="w-10 h-10 text-rose-500 mx-auto mb-4" />
+            <p className="font-semibold">Failed to load assignments</p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => refetch()}>Retry</Button>
+          </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                {["Vehicle","Assigned To","Assigned By","Date","Return Date","Purpose","Status",""].map(h => (
-                  <TableHead key={h} className="font-bold text-xs uppercase tracking-wide">{h}</TableHead>
-                ))}
+                <TableHead className="font-bold text-xs uppercase tracking-wide px-6">Vehicle</TableHead>
+                <TableHead className="font-bold text-xs uppercase tracking-wide">Assigned To</TableHead>
+                <TableHead className="font-bold text-xs uppercase tracking-wide">Authorized By</TableHead>
+                <TableHead className="font-bold text-xs uppercase tracking-wide">Assignment Date</TableHead>
+                <TableHead className="font-bold text-xs uppercase tracking-wide">Return Date</TableHead>
+                <TableHead className="font-bold text-xs uppercase tracking-wide">Purpose</TableHead>
+                <TableHead className="font-bold text-xs uppercase tracking-wide">Status</TableHead>
+                <TableHead className="w-12 px-6"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(data?.data ?? []).length === 0 ? (
+              {data?.data.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground text-sm">
-                    <ClipboardList className="w-8 h-8 mx-auto mb-2 opacity-20" />No assignments yet.
+                  <TableCell colSpan={8} className="h-64 text-center">
+                    <UserCheck className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                    <p className="text-muted-foreground">No assignments found</p>
                   </TableCell>
                 </TableRow>
               ) : (
-                (data?.data ?? []).map(a => (
-                  <TableRow key={a.id} className="hover:bg-muted/20 transition-colors">
-                    <TableCell>
-                      <div className="font-mono text-xs font-bold text-primary">{a.vehicle?.registrationNumber ?? "—"}</div>
+                data?.data.map((a: any) => (
+                  <TableRow key={a.id} className="hover:bg-muted/10">
+                    <TableCell className="px-6">
+                      <div className="font-mono text-xs font-bold text-primary">{a.vehicle?.registrationNumber || "N/A"}</div>
                       <div className="text-xs text-muted-foreground">{a.vehicle?.vehicleName}</div>
                     </TableCell>
-                    <TableCell className="text-sm font-semibold">{a.assignedTo}</TableCell>
-                    <TableCell className="text-sm">{a.assignedBy}</TableCell>
-                    <TableCell className="text-sm">{fmt(a.assignmentDate)}</TableCell>
-                    <TableCell className="text-sm">{a.returnDate ? fmt(a.returnDate) : "—"}</TableCell>
-                    <TableCell className="text-sm">{a.purpose ?? "—"}</TableCell>
                     <TableCell>
-                      <span className={`inline-flex text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
-                        a.status === "active"
-                          ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                          : "bg-gray-100 text-gray-600 border-gray-200"
-                      }`}>
-                        {a.status}
-                      </span>
+                      <div className="text-sm font-semibold">{a.assignedTo}</div>
                     </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-rose-600"
-                        onClick={() => { if (confirm("Delete this assignment?")) del(a.id) }}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                    <TableCell className="text-sm text-muted-foreground">{a.assignedBy}</TableCell>
+                    <TableCell className="text-sm">{fmt(a.assignmentDate)}</TableCell>
+                    <TableCell className="text-sm">
+                      {a.returnDate ? (
+                        <span className={new Date(a.returnDate) < new Date() && a.status === 'active' ? "text-rose-600 font-semibold" : ""}>
+                          {fmt(a.returnDate)}
+                        </span>
+                      ) : <span className="text-muted-foreground">Open-ended</span>}
+                    </TableCell>
+                    <TableCell className="text-sm max-w-[160px] truncate">{a.purpose || "—"}</TableCell>
+                    <TableCell>{getStatusBadge(a.status)}</TableCell>
+                    <TableCell className="px-6">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="w-4 h-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => dispatch(openFleetDrawer({ type: 'assignment', mode: 'edit', data: a }))}>
+                            <Pencil className="w-3.5 h-3.5 mr-2" />Edit Assignment
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-rose-600 focus:text-rose-600" onClick={() => { if (confirm("Remove this assignment?")) deleteAssignment(a.id) }}>
+                            <Trash2 className="w-3.5 h-3.5 mr-2" />Remove
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -192,14 +133,17 @@ export default function AssignmentsView() {
             </TableBody>
           </Table>
         )}
-        {data && data.total > 0 && (
-          <div className="px-4 py-3 border-t border-border/40 text-xs text-muted-foreground">
-            {data.data.length} of {data.total} assignments
+
+        {data && data.total > limit && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-border/40">
+            <p className="text-xs text-muted-foreground">Page {page} of {Math.ceil(data.total / limit)}</p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
+              <Button variant="outline" size="sm" disabled={page >= Math.ceil(data.total / limit)} onClick={() => setPage(p => p + 1)}>Next</Button>
+            </div>
           </div>
         )}
       </Card>
-
-      <AddAssignmentDialog open={showAdd} onClose={() => setShowAdd(false)} />
     </div>
   )
 }

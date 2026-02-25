@@ -62,6 +62,9 @@ export const fleetApi = {
     list: (params?: Record<string, unknown>) =>
       api.get<PaginatedResponse<FuelLog>>("/fleet/fuel", { params }).then(r => r.data),
 
+    get: (id: string) =>
+      api.get<FuelLog>(`/fleet/fuel/${id}`).then(r => r.data),
+
     create: (dto: CreateFuelLogDto) =>
       api.post<FuelLog>("/fleet/fuel", dto).then(r => r.data),
 
@@ -100,5 +103,17 @@ export const fleetApi = {
 
     delete: (id: string) =>
       api.delete(`/fleet/assignments/${id}`).then(r => r.data),
+  },
+
+  // ─── Reports & Summary ───────────────────────────────────────────────────────
+  reports: {
+    stats: () =>
+      api.get<any>("/fleet/stats").then(r => r.data),
+    
+    summary: () =>
+      api.get<any[]>("/fleet/reports/summary").then(r => r.data),
+    
+    vehicleReport: (id: string) =>
+      api.get<any>(`/fleet/reports/vehicle/${id}`).then(r => r.data),
   },
 }
