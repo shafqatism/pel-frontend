@@ -1,0 +1,4 @@
+fullName,designation,department,status,basicSalary,email
+John Import 1,Field Engineer,Operations,active,90000,jimport1@pelexploration.com
+Sarah Import 2,HSE Officer,HSE,active,80000,simport2@pelexploration.com
+Ali Import 3,Driver,Fleet,on_leave,40000,aimport3@pelexploration.com

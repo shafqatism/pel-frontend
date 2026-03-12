@@ -1,0 +1,3 @@
+registrationNumber,vehicleName,make,model,year,type,fuelType,ownershipStatus,status,currentOdometerKm
+VAR-999,Test Truck 1,Toyota,Hilux,2022,pickup,diesel,company_owned,active,12000
+VAR-888,Test Sedan 1,Honda,Civic,2023,sedan,petrol,rented,active,5000
