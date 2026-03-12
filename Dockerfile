@@ -22,27 +22,9 @@ FROM nginx:stable-alpine AS runner
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Add a basic Nginx configuration to handle SPA routing
-RUN rm /etc/nginx/conf.d/default.conf
-COPY <<EOF /etc/nginx/conf.d/default.conf
-server {
-    listen 8080;
-    server_name localhost;
-
-    location / {
-        root   /usr/share/nginx/html;
-        index  index.html index.htm;
-        try_files \$uri \$uri/ /index.html;
-    }
-
-    error_page   500 502 503 504  /50x.html;
-    location = /50x.html {
-        root   /usr/share/nginx/html;
-    }
-}
-EOF
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port (Railway defaults to 8080 or supply one)
-ENV PORT=8080
 EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]
